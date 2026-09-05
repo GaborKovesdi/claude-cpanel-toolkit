@@ -122,6 +122,30 @@ export function httpCheck(url, { expectStatus = 200, timeoutMs = 20000, expectTe
   });
 }
 
+/* ------------------------------------------------ test-environment guardrail */
+
+/** An environment is "production-like" if it gates on approval or is named as live. */
+export function isProductionLike(env) {
+  return env.requireApproval === true || /^(prod|production|live|www)$/i.test(env.name || "");
+}
+
+/**
+ * Does the site have a separate test/staging environment - i.e. at least one
+ * environment that is NOT production-like? Having one alongside production is a
+ * strong recommendation of this toolkit, so the tools surface its absence.
+ */
+export function testEnvironmentStatus(site) {
+  const envs = site.environments ?? {};
+  const staging = Object.keys(envs).filter((n) => !isProductionLike({ ...envs[n], name: n }));
+  return { hasTestEnv: staging.length > 0, testEnvs: staging };
+}
+
+const NO_TEST_ENV_WARNING =
+  "STRONGLY RECOMMENDED: this is a production environment and the site has no separate " +
+  "test/staging environment. Deploying straight to production means every release is tested " +
+  "on your live site. Set one up with the test-env-setup skill (or add a staging environment " +
+  "to the site config) so releases are verified somewhere safe first.";
+
 /* ----------------------------------------------------------------- preflight */
 
 export async function preflight(siteName, envName) {
@@ -204,12 +228,18 @@ export async function preflight(siteName, envName) {
     add("site currently responds", h.ok, h.error ?? `HTTP ${h.status} in ${h.ms}ms`);
   }
 
+  const warnings = [];
+  if (isProductionLike(env) && !testEnvironmentStatus(site).hasTestEnv) {
+    warnings.push(NO_TEST_ENV_WARNING);
+  }
+
   return {
     site: siteName,
     environment: envName,
     strategy: env.strategy,
     ok: checks.every((c) => c.ok),
     failed: checks.filter((c) => !c.ok).map((c) => c.name),
+    warnings,
     checks,
   };
 }
@@ -293,6 +323,12 @@ export async function deploy(
   const git = gitState(expandHome(site.repo || sourceDir));
   const steps = [];
   const step = (name, detail) => steps.push({ name, detail });
+
+  const warnings = [];
+  if (isProductionLike(env) && !testEnvironmentStatus(site).hasTestEnv) {
+    warnings.push(NO_TEST_ENV_WARNING);
+    step("warning", NO_TEST_ENV_WARNING);
+  }
 
   let backupInfo = null;
   if (!skipBackup && env.backups) {
@@ -399,6 +435,7 @@ export async function deploy(
     fileCount: files.length,
     backup: backupInfo,
     steps,
+    warnings,
     health,
     ok: !health || health.ok,
     rollbackHint:

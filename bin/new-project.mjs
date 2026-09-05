@@ -148,9 +148,14 @@ Inherited from the toolkit (not copied into the project):
   ssh key       ${identity}
   cPanel token  env var named in the toolkit config's defaults.cpanel.apiTokenEnv
 
+This project ships with BOTH a staging and a production environment, on purpose.
+Keep the staging block - a test environment alongside production is strongly
+recommended, and the tooling warns when a production site has none.
+
 Next:
   1. cd ${target}
   2. review cpanel.site.json - the remote paths are guesses until you check them
-  3. claude, then run the /test-env-setup skill to build the staging environment
-  4. cpanel_preflight site=${siteKey} environment=staging
+  3. claude, then run the /test-env-setup skill to build the staging environment first
+  4. cpanel_preflight site=${siteKey} environment=staging   (verify staging before prod)
+  5. deploy to staging, verify, and only then cut a production release
 `);

@@ -2,7 +2,9 @@
   "$comment": [
     "Per-project site config for a cPanel Passenger Node app. Overlaid on the toolkit's",
     "config/sites.json, so the shared SSH key and cPanel account declared in its defaults",
-    "apply here without being repeated."
+    "apply here without being repeated.",
+    "KEEP BOTH environments: a staging/test environment alongside production is strongly",
+    "recommended so releases are verified safely first. The tooling warns if staging is missing."
   ],
   "site": "__SITE_KEY__",
   "label": "__SITE_LABEL__",

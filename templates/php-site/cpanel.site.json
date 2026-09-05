@@ -2,7 +2,9 @@
   "$comment": [
     "Per-project site config. Overlaid on the toolkit's config/sites.json, so defaults",
     "declared there - including the shared SSH key - apply here without being repeated.",
-    "Set ssh.identityFile below ONLY if this project needs a different key from the default."
+    "Set ssh.identityFile below ONLY if this project needs a different key from the default.",
+    "KEEP BOTH environments: a staging/test environment alongside production is strongly",
+    "recommended so releases are verified safely first. The tooling warns if staging is missing."
   ],
   "site": "__SITE_KEY__",
   "label": "__SITE_LABEL__",

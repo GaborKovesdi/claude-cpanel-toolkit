@@ -6,6 +6,18 @@ It covers the whole path — spec and architecture, UX and visual design, fronte
 
 **Start here:** run `/start` and describe what you want to do. It checks the toolkit is set up, works out what kind of job it is, and routes to the right agents and skills — coordinated by the `orchestrator` agent. You never have to know the roster below; `/start` does.
 
+> ### Strongly recommended: a test environment alongside every production site
+>
+> Every site should have a **separate staging/test environment next to production**, so releases are verified somewhere safe before they reach live users. Without one, every deploy is tested in production.
+>
+> This is baked in, not just advised:
+> - the project templates ship **with a `staging` environment already defined** next to `production`
+> - `/site-register` and `/start` treat setting up staging as a default step, and `/test-env-setup` builds one from nothing
+> - the tooling **warns you** — `cpanel_list_sites`, `cpanel_preflight` and `cpanel_deploy` all flag a production site that has no test environment
+> - `release-manager` deploys to staging first and will not treat production as routine without one
+>
+> Keep the `staging` block in your `cpanel.site.json`. Removing it is what the warnings are there to catch.
+
 ```
 agents/
 ├─ .claude/

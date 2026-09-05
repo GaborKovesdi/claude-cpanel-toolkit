@@ -16,6 +16,8 @@ This repository is a **reusable kit**, not a website. Nothing here is deployed. 
 
 **One SSH key for the estate.** It is declared once under `defaults.ssh` in `config/sites.json` and inherited by every site. Adding a per-project key to work around a problem hides the problem. Fix it in the one place.
 
+**A test environment alongside every production site is a toolkit principle.** Templates ship with a `staging` environment next to `production`; do not remove it, and keep the warnings in `preflight`/`deploy`/`list_sites` that flag a production site with no test environment (`isProductionLike` / `testEnvironmentStatus` in `deploy.mjs`). Releases get verified on staging before they reach live users.
+
 **Add a tool in one place.** New cPanel capability goes into the `TOOLS` array in `src/tools.mjs` with a JSON Schema and a handler. Both frontends pick it up automatically — do not add anything to `server.mjs` or `cpanelctl.mjs`. Mark anything that writes to a live server with `destructive: true` and require a `confirm` argument.
 
 **No dependencies in the MCP server beyond the SDK.** It uses `node:https`, `node:child_process` and the system `ssh`/`tar`. That is deliberate: this thing has to keep working on a machine that has not been touched in a year.

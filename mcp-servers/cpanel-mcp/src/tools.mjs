@@ -19,6 +19,7 @@ import {
   httpCheck,
   restartNodeApp,
   nodeInstall,
+  testEnvironmentStatus,
 } from "./deploy.mjs";
 
 const str = (description) => ({ type: "string", description });
@@ -43,7 +44,19 @@ export const TOOLS = [
       const cfg = loadConfig();
       // `sources` shows which files were merged - the toolkit config that carries the
       // shared SSH key, plus any project-local cpanel.site.json overlaid on top of it.
-      return { sources: cfg.sources, defaults: cfg.defaults, sites: listSites() };
+      const sites = listSites();
+      // Flag any site that has a production environment but no separate test/staging one.
+      const warnings = [];
+      for (const s of sites) {
+        const status = testEnvironmentStatus(getSite(s.name));
+        s.hasTestEnv = status.hasTestEnv;
+        if (!status.hasTestEnv) {
+          warnings.push(
+            `${s.name}: no test/staging environment - strongly recommended alongside production (see the test-env-setup skill).`
+          );
+        }
+      }
+      return { sources: cfg.sources, defaults: cfg.defaults, sites, warnings };
     },
   },
   {

@@ -90,6 +90,9 @@ try {
     console.log(text);
   } else {
     console.log(text);
+    // Surface any warnings again at the end, where they will not be lost in a long result.
+    const warnings = Array.isArray(result?.warnings) ? result.warnings : [];
+    for (const w of warnings) console.warn(`\n! ${redact(w)}`);
     if (result && result.ok === false) process.exitCode = 1;
   }
 } catch (err) {

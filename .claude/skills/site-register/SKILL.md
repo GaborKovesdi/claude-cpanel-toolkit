@@ -60,6 +60,14 @@ cpanel_preflight site=<site> environment=staging
 
 Every preflight check must pass before you call the site registered. A config that has never been exercised is not a config, it is a guess.
 
-## 6. Hand back
+## 6. Give it a test environment — strongly recommended, not optional
 
-Tell the user: the site key, its environments, the strategy chosen and why, where the secrets live, and the command to deploy it. Then offer the first deploy to staging.
+A site is not properly registered with production alone. **Every site should have a separate staging/test environment next to production**, so releases are verified somewhere safe before they reach live users — otherwise every deploy is tested in production.
+
+- Register **both** environments. The templates already ship a `staging` block next to `production`; keep it.
+- If the site genuinely only has a production environment right now, run `/test-env-setup` to build staging before the first real release, and say plainly why deploying prod-only is a risk.
+- The tooling backs this up: `cpanel_list_sites`, `cpanel_preflight` and `cpanel_deploy` warn about a production site with no test environment. If you see that warning after registering, the registration is not finished.
+
+## 7. Hand back
+
+Tell the user: the site key, its environments, the strategy chosen and why, where the secrets live, and the command to deploy it. Confirm a staging environment exists (or is scheduled), then offer the first deploy **to staging**.
