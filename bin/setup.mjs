@@ -14,7 +14,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
+import { execSync, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -33,11 +33,10 @@ console.log("cPanel toolkit setup\n");
 const serverDir = path.join(ROOT, "mcp-servers", "cpanel-mcp");
 try {
   console.log("Installing the cPanel MCP server dependency (npm)...");
-  execFileSync("npm", ["install", "--no-audit", "--no-fund"], {
-    cwd: serverDir,
-    stdio: "inherit",
-    shell: process.platform === "win32", // npm is a .cmd on Windows
-  });
+  // execSync goes through a shell, which is what npm's .cmd wrapper needs on Windows
+  // (execFileSync without shell:true throws EINVAL for .cmd there). Safe here - the
+  // whole command is a fixed literal, nothing from user input is interpolated.
+  execSync("npm install --no-audit --no-fund", { cwd: serverDir, stdio: "inherit" });
   console.log("  dependency installed.\n");
 } catch (e) {
   console.error(`  npm install failed in ${rel(serverDir)}: ${e.message}`);

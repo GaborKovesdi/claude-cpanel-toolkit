@@ -28,6 +28,7 @@ Read the request and classify it. If it is ambiguous, ask the one or two questio
 | an idea, "I want to build…", something new and fuzzy | **shape it** | `/spec` + `product-architect` |
 | "add / build / create [a feature]" | **feature** | `/feature-kickoff` |
 | "new site / project from scratch" | **new project** | `bin/new-project.mjs` → `/site-register` → `/test-env-setup` |
+| "this is a Claude Code Cloud session" / no local toolkit clone visible | **new project (cloud)** | same, but scaffold with `--standalone` — it vendors the MCP server into the project with a relative path instead of an absolute one back to a toolkit clone that will not exist in the cloud container |
 | "design / how should this look or work" | **design** | `ux-designer` → `/wireframe` → `ui-designer` / `/design-system` |
 | "it's broken / down / throwing errors **now**" | **incident** | `incident-responder` — drop everything else |
 | "deploy / ship / release / roll it back" | **release** | `release-manager` + `/cpanel-deploy` or `/rollback` |

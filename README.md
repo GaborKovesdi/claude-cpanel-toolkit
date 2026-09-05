@@ -111,6 +111,32 @@ The new project gets the template files with placeholders filled in, copies of a
 
 To wire up an **existing** project instead, copy `templates/php-site/cpanel.site.json` into it, edit the paths, and copy `.claude/` and `.mcp.json` across.
 
+## Using this in Claude Code Cloud (claude.ai/code)
+
+The default scaffold above links back to this toolkit's MCP server **by absolute path** — fine on one machine managing several client sites, but a cloud session starts from a fresh, isolated container holding only what the project's own repo committed. That absolute path will not resolve there.
+
+Pass `--standalone` and the project vendors its own copy of the MCP server instead:
+
+```bash
+node bin/new-project.mjs --template php-site --dir C:/xprojects/acme \
+     --key acme --domain acme.hu --standalone
+```
+
+This copies `mcp-servers/cpanel-mcp/` into the project, runs `npm install` inside it, writes `.mcp.json` with a **relative** path, and inlines the `ssh`/`cpanel` connection block directly into the project's own `cpanel.site.json` (no external toolkit config to inherit from once it stands alone). `git init`, commit, push to its own repo, and it opens correctly anywhere — a teammate's machine or a Claude Code Cloud session — without this toolkit being present there too.
+
+**The private key and the API token still never get committed** — that part does not change, and it cannot: they are secrets, not config. Whatever environment opens the project (cloud included) needs them provisioned fresh:
+
+- `.env` with the cPanel API token (copy `.env.example`)
+- the private SSH key at the path `cpanel.site.json`'s `ssh.identityFile` names
+
+A cloud sandbox's network policy may also restrict outbound SSH to an arbitrary host on a non-standard port — that is out of this toolkit's control. Test it early and cheaply once a session starts:
+
+```
+cpanel_ssh_exec site=acme command="echo ok"
+```
+
+If that fails in the cloud but works locally, use the cloud session for design, build and test work, and run the actual deploys (`cpanel_deploy`, `cpanel_rollback`) from a session that has real network access to the host.
+
 ## Config model
 
 Two files, merged:
