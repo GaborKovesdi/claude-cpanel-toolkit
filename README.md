@@ -29,8 +29,8 @@ agents/
 Clone the toolkit once, then use it to scaffold as many projects as you like.
 
 ```bash
-git clone https://github.com/GaborKovesdi/cpanel-agentic-toolkit.git
-cd cpanel-agentic-toolkit
+git clone https://github.com/GaborKovesdi/claude-cpanel-toolkit.git
+cd claude-cpanel-toolkit
 node bin/setup.mjs          # installs deps, creates config/sites.json and .env from the examples
 ```
 

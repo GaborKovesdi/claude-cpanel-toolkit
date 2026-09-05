@@ -1,5 +1,5 @@
 {
-  "name": "cpanel-agentic-toolkit",
+  "name": "claude-cpanel-toolkit",
   "version": "1.0.0",
   "private": true,
   "description": "Agents, skills and a custom cPanel MCP server for designing, building, securing and releasing web apps on cPanel shared hosting with Claude Code.",
