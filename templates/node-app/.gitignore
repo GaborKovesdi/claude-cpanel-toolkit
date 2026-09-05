@@ -1,0 +1,8 @@
+.env
+.env.*
+!.env.example
+/node_modules/
+*.log
+.deploy-manifest
+tmp/restart.txt
+.DS_Store

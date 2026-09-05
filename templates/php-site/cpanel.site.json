@@ -1,0 +1,34 @@
+{
+  "$comment": [
+    "Per-project site config. Overlaid on the toolkit's config/sites.json, so defaults",
+    "declared there - including the shared SSH key - apply here without being repeated.",
+    "Set ssh.identityFile below ONLY if this project needs a different key from the default."
+  ],
+  "site": "__SITE_KEY__",
+  "label": "__SITE_LABEL__",
+  "kind": "php",
+  "phpVersion": "8.2",
+
+  "environments": {
+    "staging": {
+      "url": "https://staging.__DOMAIN__",
+      "strategy": "sync",
+      "docroot": "/home/__CPANEL_USER__/staging.__DOMAIN__",
+      "backups": "/home/__CPANEL_USER__/.deploy/backups/__SITE_KEY__-staging",
+      "source": "public",
+      "healthPath": "/health.php"
+    },
+    "production": {
+      "url": "https://__DOMAIN__",
+      "strategy": "symlink",
+      "currentLink": "/home/__CPANEL_USER__/sites/__SITE_KEY__/current",
+      "releases": "/home/__CPANEL_USER__/sites/__SITE_KEY__/releases",
+      "shared": "/home/__CPANEL_USER__/sites/__SITE_KEY__/shared",
+      "backups": "/home/__CPANEL_USER__/.deploy/backups/__SITE_KEY__-prod",
+      "source": "public",
+      "sharedPaths": [".env", "uploads"],
+      "healthPath": "/health.php",
+      "requireApproval": true
+    }
+  }
+}

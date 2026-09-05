@@ -1,0 +1,15 @@
+{
+  "name": "cpanel-agentic-toolkit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Agents, skills and a custom cPanel MCP server for designing, building, securing and releasing web apps on cPanel shared hosting with Claude Code.",
+  "type": "module",
+  "scripts": {
+    "setup": "node bin/setup.mjs",
+    "new": "node bin/new-project.mjs",
+    "cpanel": "node mcp-servers/cpanel-mcp/bin/cpanelctl.mjs"
+  },
+  "engines": { "node": ">=20" },
+  "license": "MIT",
+  "keywords": ["claude-code", "mcp", "cpanel", "deploy", "agents", "skills"]
+}

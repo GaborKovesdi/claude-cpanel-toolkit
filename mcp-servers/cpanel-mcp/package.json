@@ -1,0 +1,14 @@
+{
+  "name": "cpanel-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server + CLI for cPanel/web-hosting operations: UAPI, SSH, atomic deploys, backups, Passenger Node apps.",
+  "bin": { "cpanelctl": "./bin/cpanelctl.mjs" },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "check": "node --check src/server.mjs && node bin/cpanelctl.mjs --help >/dev/null && echo ok"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": { "@modelcontextprotocol/sdk": "^1.30.0" }
+}

@@ -1,0 +1,13 @@
+# Secrets and machine-specific config
+.env
+.env.local
+config/sites.json
+
+# The shared SSH key never belongs in the repo
+*.pem
+id_*
+!id_*.pub.example
+
+node_modules/
+*.log
+.DS_Store

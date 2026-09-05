@@ -1,0 +1,42 @@
+{
+  "$comment": [
+    "Per-project site config for a cPanel Passenger Node app. Overlaid on the toolkit's",
+    "config/sites.json, so the shared SSH key and cPanel account declared in its defaults",
+    "apply here without being repeated."
+  ],
+  "site": "__SITE_KEY__",
+  "label": "__SITE_LABEL__",
+  "kind": "node",
+
+  "node": {
+    "appRoot": "/home/__CPANEL_USER__/nodeapps/__SITE_KEY__",
+    "nodeVersion": "20",
+    "venvActivate": "/home/__CPANEL_USER__/nodevenv/nodeapps/__SITE_KEY__/20/bin/activate",
+    "entry": "app.js",
+    "installCommand": "npm ci --omit=dev"
+  },
+
+  "environments": {
+    "staging": {
+      "url": "https://staging.__DOMAIN__",
+      "strategy": "sync",
+      "docroot": "/home/__CPANEL_USER__/nodeapps/__SITE_KEY__-staging",
+      "backups": "/home/__CPANEL_USER__/.deploy/backups/__SITE_KEY__-staging",
+      "source": ".",
+      "healthPath": "/healthz",
+      "restartNodeApp": true,
+      "excludes": [".git", ".claude", "node_modules", ".env", "*.log", "tests"]
+    },
+    "production": {
+      "url": "https://__DOMAIN__",
+      "strategy": "sync",
+      "docroot": "/home/__CPANEL_USER__/nodeapps/__SITE_KEY__",
+      "backups": "/home/__CPANEL_USER__/.deploy/backups/__SITE_KEY__-prod",
+      "source": ".",
+      "healthPath": "/healthz",
+      "requireApproval": true,
+      "restartNodeApp": true,
+      "excludes": [".git", ".claude", "node_modules", ".env", "*.log", "tests"]
+    }
+  }
+}

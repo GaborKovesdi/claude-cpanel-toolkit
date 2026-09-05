@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "cpanel": {
+      "command": "node",
+      "args": ["mcp-servers/cpanel-mcp/src/server.mjs"]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
+    },
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/"
+    }
+  }
+}

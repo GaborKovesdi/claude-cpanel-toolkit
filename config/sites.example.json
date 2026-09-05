@@ -1,0 +1,109 @@
+{
+  "$comment": [
+    "Copy to config/sites.json (gitignored) and fill in.",
+    "Secrets NEVER live here - only the NAME of the env var that holds them (see .env.example).",
+    "Anything in defaults.ssh / defaults.cpanel / defaults.node is inherited by every site,",
+    "field by field, and a site that sets the same field wins. That is how one fixed SSH key",
+    "is declared once here and used by every project."
+  ],
+
+  "defaults": {
+    "ssh": {
+      "host": "server42.webhosting.example",
+      "port": 22,
+      "user": "demousr",
+      "identityFile": "~/.ssh/id_ed25519_cpanel"
+    },
+    "cpanel": {
+      "host": "server42.webhosting.example",
+      "port": 2083,
+      "user": "demousr",
+      "apiTokenEnv": "CPANEL_TOKEN_MAIN",
+      "insecureTLS": false
+    },
+    "keepReleases": 5,
+    "healthPath": "/",
+    "expectStatus": 200,
+    "excludes": [".git", ".github", ".claude", "node_modules", ".env", ".env.*", ".DS_Store", "*.log", "tests", "*.md"]
+  },
+
+  "sites": {
+    "demo-php": {
+      "label": "Demo PHP site",
+      "kind": "php",
+      "phpVersion": "8.2",
+      "repo": "C:/xprojects/demo-php",
+
+      "environments": {
+        "staging": {
+          "url": "https://staging.demo.example",
+          "strategy": "sync",
+          "docroot": "/home/demousr/staging.demo.example",
+          "backups": "/home/demousr/.deploy/backups/demo-php-staging",
+          "source": "public",
+          "healthPath": "/health.php"
+        },
+        "production": {
+          "url": "https://demo.example",
+          "strategy": "symlink",
+          "currentLink": "/home/demousr/sites/demo/current",
+          "releases": "/home/demousr/sites/demo/releases",
+          "shared": "/home/demousr/sites/demo/shared",
+          "backups": "/home/demousr/.deploy/backups/demo-php-prod",
+          "source": "public",
+          "sharedPaths": [".env", "uploads", "storage/logs"],
+          "healthPath": "/health.php",
+          "requireApproval": true
+        }
+      },
+
+      "database": {
+        "name": "demousr_app",
+        "user": "demousr_app",
+        "passwordEnv": "DB_PASS_DEMO",
+        "migrations": "db/migrations",
+        "staging": { "name": "demousr_app_stg", "user": "demousr_app_stg", "passwordEnv": "DB_PASS_DEMO_STG" }
+      }
+    },
+
+    "demo-node": {
+      "label": "Demo Node app (cPanel Passenger)",
+      "kind": "node",
+      "repo": "C:/xprojects/demo-node",
+
+      "$comment": "ssh and cpanel are inherited from defaults - nothing to repeat here.",
+
+      "node": {
+        "appRoot": "/home/demousr/nodeapps/demo",
+        "nodeVersion": "20",
+        "venvActivate": "/home/demousr/nodevenv/nodeapps/demo/20/bin/activate",
+        "entry": "app.js",
+        "installCommand": "npm ci --omit=dev"
+      },
+
+      "environments": {
+        "staging": {
+          "url": "https://api-staging.demo.example",
+          "strategy": "sync",
+          "docroot": "/home/demousr/nodeapps/demo-staging",
+          "backups": "/home/demousr/.deploy/backups/demo-node-staging",
+          "source": ".",
+          "healthPath": "/healthz",
+          "restartNodeApp": true,
+          "excludes": [".git", ".claude", "node_modules", ".env", "*.log", "tests"]
+        },
+        "production": {
+          "url": "https://api.demo.example",
+          "strategy": "sync",
+          "docroot": "/home/demousr/nodeapps/demo",
+          "backups": "/home/demousr/.deploy/backups/demo-node",
+          "source": ".",
+          "healthPath": "/healthz",
+          "requireApproval": true,
+          "restartNodeApp": true,
+          "excludes": [".git", ".claude", "node_modules", ".env", "*.log", "tests"]
+        }
+      }
+    }
+  }
+}

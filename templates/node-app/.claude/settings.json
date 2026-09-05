@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__cpanel__cpanel_list_sites",
+      "mcp__cpanel__cpanel_describe_site",
+      "mcp__cpanel__cpanel_preflight",
+      "mcp__cpanel__cpanel_health",
+      "mcp__cpanel__cpanel_releases",
+      "mcp__cpanel__cpanel_list_backups",
+      "mcp__cpanel__cpanel_error_log",
+      "mcp__cpanel__cpanel_list_files",
+      "mcp__cpanel__cpanel_read_file",
+      "mcp__cpanel__cpanel_domains",
+      "mcp__cpanel__cpanel_disk_usage",
+      "mcp__cpanel__cpanel_ssl_status",
+      "mcp__cpanel__cpanel_list_databases",
+      "mcp__cpanel__cpanel_list_cron",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)"
+    ],
+    "ask": [
+      "mcp__cpanel__cpanel_deploy",
+      "mcp__cpanel__cpanel_rollback",
+      "mcp__cpanel__cpanel_add_cron",
+      "mcp__cpanel__cpanel_ssh_exec",
+      "mcp__cpanel__cpanel_node_install"
+    ]
+  }
+}
