@@ -5,6 +5,7 @@
   "description": "Agents, skills and a custom cPanel MCP server for designing, building, securing and releasing web apps on cPanel shared hosting with Claude Code.",
   "type": "module",
   "scripts": {
+    "wizard": "node bin/wizard.mjs",
     "setup": "node bin/setup.mjs",
     "new": "node bin/new-project.mjs",
     "cpanel": "node mcp-servers/cpanel-mcp/bin/cpanelctl.mjs"

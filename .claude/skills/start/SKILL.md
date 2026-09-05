@@ -15,7 +15,7 @@ On the first run in an environment, confirm the setup before routing anywhere th
 cpanel_list_sites
 ```
 
-- **Error about missing config** → the toolkit is not set up. Route to setup: fill the three `CHANGEME` values in `config/sites.json`, put the API token in `.env`, and run `/ssh-key-setup` for the shared key. Do this before anything that deploys.
+- **Error about missing config** → the toolkit is not set up. The fastest fix is `node bin/wizard.mjs` from the toolkit root — it installs the dependency, generates the shared SSH key, walks through the one manual cPanel click (importing/authorizing the key — not scriptable, see `/ssh-key-setup`), saves the connection details, and scaffolds the first project in one guided run. Do this before anything that deploys.
 - **Lists sites** → ready. Carry on.
 - Pure design, spec or planning work needs no server and can start immediately regardless.
 

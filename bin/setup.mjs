@@ -11,6 +11,11 @@
  *
  * Idempotent: safe to run more than once. It never overwrites a config or .env
  * you have already edited.
+ *
+ * For a guided, interactive version of this - one that also generates the shared
+ * SSH key, walks you through authorising it, and scaffolds your first project -
+ * use `node bin/wizard.mjs` instead. This script is the quieter, non-interactive
+ * building block it (and CI) can call.
  */
 import fs from "node:fs";
 import path from "node:path";

@@ -43,6 +43,16 @@ Clone the toolkit once, then use it to scaffold as many projects as you like.
 ```bash
 git clone https://github.com/GaborKovesdi/claude-cpanel-toolkit.git
 cd claude-cpanel-toolkit
+node bin/wizard.mjs
+```
+
+`bin/wizard.mjs` is the fastest path from a bare clone to a working, preflight-verified project: it installs the dependency, generates the shared SSH deploy key, walks you through the one manual click cPanel requires (see below), saves your connection details, and scaffolds your first project — all in one guided run. Safe to re-run: it reuses anything you already filled in rather than asking again.
+
+It automates everything except one step, deliberately: **authorizing the SSH key in cPanel**. cPanel's key import/authorize calls only exist in its legacy "API 2" interface — the official docs say plainly that no UAPI equivalent exists — so scripting against that older, less-verified surface to change what can log into your account is exactly the kind of shortcut this toolkit's own agents are written to refuse. The wizard generates the key, prints the public half, and waits for you to import and authorize it in the cPanel UI (Security → SSH Access → Manage SSH Keys), then verifies the result itself before continuing.
+
+Prefer the manual route, or want to understand each piece first? It's below.
+
+```bash
 node bin/setup.mjs          # installs deps, creates config/sites.json and .env from the examples
 ```
 
@@ -70,10 +80,12 @@ cd mcp-servers/cpanel-mcp && npm install
 Run the `/ssh-key-setup` skill, or by hand:
 
 ```bash
-ssh-keygen -t ed25519 -a 100 -f ~/.ssh/id_ed25519_cpanel -C "claude-toolkit"
+ssh-keygen -t ed25519 -a 100 -f ~/.ssh/id_ed25519_cpanel -N "" -C "claude-toolkit"
 ```
 
-Import the **public** key in cPanel under *Security → SSH Access → Manage SSH Keys*, then click **Manage → Authorize**. An imported key that has not been authorised looks correct and does not work — that is the single most common failure.
+No passphrase, deliberately — this toolkit's SSH calls run with `BatchMode=yes` for unattended deploys, which cannot answer a passphrase prompt. Treat it as a single-purpose deploy key, never your personal login key (see `/ssh-key-setup` for the full reasoning and the passphrase+agent alternative).
+
+Import the **public** key in cPanel under *Security → SSH Access → Manage SSH Keys*, then click **Manage → Authorize**. An imported key that has not been authorised looks correct and does not work — that is the single most common failure. This step is manual by design: cPanel's key import/authorize calls only exist in its legacy API 2 interface, which the official docs say has no UAPI equivalent, so this toolkit does not script against it.
 
 **3. Create the cPanel API token**
 

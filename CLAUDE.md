@@ -4,10 +4,11 @@ This repository is a **reusable kit**, not a website. Nothing here is deployed. 
 
 ## Layout
 
-- `.claude/agents/` — 9 subagent definitions. One concern each.
-- `.claude/skills/` — 10 skills, one directory each with a `SKILL.md`.
+- `.claude/agents/` — 17 subagent definitions. One concern each.
+- `.claude/skills/` — 22 skills, one directory each with a `SKILL.md`.
 - `mcp-servers/cpanel-mcp/` — the cPanel MCP server. `src/tools.mjs` is the single tool registry; `src/server.mjs` (MCP over stdio) and `bin/cpanelctl.mjs` (CLI) are both thin frontends over it.
-- `templates/` — project templates consumed by `bin/new-project.mjs`.
+- `templates/` — project templates consumed by `bin/new-project.mjs` (`--standalone` vendors the MCP server into the project instead of referencing this clone by absolute path - needed for Claude Code Cloud or any repo that has to stand on its own).
+- `bin/wizard.mjs` — the interactive, guided setup path (calls `setup.mjs` and `new-project.mjs` under the hood; adds SSH key generation, connection gathering, and a post-scaffold preflight check).
 - `config/sites.json` — local, gitignored, holds no secret values.
 
 ## Rules that matter here
@@ -23,6 +24,8 @@ This repository is a **reusable kit**, not a website. Nothing here is deployed. 
 **No dependencies in the MCP server beyond the SDK.** It uses `node:https`, `node:child_process` and the system `ssh`/`tar`. That is deliberate: this thing has to keep working on a machine that has not been touched in a year.
 
 **`rsync` is not available on this machine.** Uploads stream `tar czf - | ssh 'tar xzf -'`. Do not write code that assumes rsync.
+
+**Interactive `bin/` scripts must not use `readline/promises`' `question()`.** It has a real bug: the second and later `question()` calls hang forever when stdin is piped rather than a live TTY (confirmed while building `wizard.mjs` - the promise never settles because lines that already arrived in one chunk are not replayed to a listener attached after the fact). Use plain `node:readline`, drive it off the `line` event, and queue lines yourself (see `wizard.mjs`'s `nextLine()`) - that pattern is correct whether stdin is a real terminal or a redirected file, which matters because these scripts get run both ways (a human typing, and tests/CI piping canned answers).
 
 ## Testing changes
 

@@ -9,29 +9,34 @@ This toolkit deliberately uses **one key for the whole hosting account**, declar
 
 Per-project keys are still possible — a project's `cpanel.site.json` can set its own `ssh.identityFile` — but that should be a deliberate exception with a reason.
 
+**The fast path:** `node bin/wizard.mjs` from the toolkit root does everything in this skill for you — generates the key, prints the public half, walks you through the one manual cPanel click, and verifies the result. Read on if you want to do it by hand, or to understand what the wizard is doing.
+
 ## 1. Create the key
 
-One key, one canonical path, no passphrase-less shortcuts on a shared machine:
+One key, one canonical path:
 
 ```bash
-ssh-keygen -t ed25519 -a 100 -f ~/.ssh/id_ed25519_cpanel -C "claude-toolkit@$(hostname)"
+ssh-keygen -t ed25519 -a 100 -f ~/.ssh/id_ed25519_cpanel -N "" -C "claude-toolkit@$(hostname)"
 ```
 
 Use ed25519 — some older cPanel hosts still default to RSA, and if the host rejects ed25519, fall back to `-t rsa -b 4096`, but try ed25519 first.
 
-**Use a passphrase**, and add the key to the agent so you type it once per session:
+**No passphrase, deliberately** (`-N ""`). This toolkit's SSH calls run with `BatchMode=yes` so an agent-driven deploy never hangs waiting on a prompt nobody is there to answer — and that includes a passphrase prompt. A passphrase-protected key only actually works under `BatchMode=yes` if it is already unlocked in a *running* `ssh-agent`, which is one more thing that has to be true, silently, every time an agent deploys — including right after a reboot, or in a fresh Claude Code Cloud session where no agent has ever been started. Treat this key the way a CI/CD deploy key is treated: single-purpose, no other login rights on top of it, and never reused as your own personal SSH key. If you specifically want passphrase protection and are willing to manage the agent's lifecycle yourself:
 
 ```bash
+ssh-keygen -t ed25519 -a 100 -f ~/.ssh/id_ed25519_cpanel -C "claude-toolkit@$(hostname)"
 eval "$(ssh-agent -s)" && ssh-add ~/.ssh/id_ed25519_cpanel
 ```
 
-On Windows the OpenSSH agent service does this persistently: `Start-Service ssh-agent; ssh-add ~/.ssh/id_ed25519_cpanel`.
+(Windows: `Start-Service ssh-agent; ssh-add ~/.ssh/id_ed25519_cpanel` keeps it loaded persistently.) Just be aware an unattended deploy will fail the moment the agent is not running or the key has fallen out of it, with no prompt to explain why.
 
 ## 2. Authorise it on the account
 
 This is the one bootstrap step that cannot be automated from here — you need existing access to grant new access.
 
 In cPanel: **Security → SSH Access → Manage SSH Keys → Import Key**. Paste the *public* key (`~/.ssh/id_ed25519_cpanel.pub`), leave the private key box empty, then click **Manage** next to the imported key and **Authorize** it. A key that is imported but not authorised looks correct and does not work — that is the most common failure here.
+
+This is a manual, UI-only step in this toolkit on purpose. cPanel's key import/authorize calls only exist in its legacy "API 2" interface — the official docs state plainly that no UAPI equivalent exists — and this toolkit's `cpanel_uapi` tool only speaks UAPI. Scripting against an older, less-verified surface to change what can log into the account is exactly the kind of shortcut this toolkit's own agents are written to refuse, so `bin/wizard.mjs` stops here and hands you the click rather than guessing at the legacy API's behaviour.
 
 Some hosts disable SSH entirely until you ask support to enable it, and some use a non-standard port. Find out both before debugging anything else.
 
