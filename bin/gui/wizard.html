@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="wizard-token" content="__TOKEN__">
+<title>cPanel toolkit setup</title>
+<style>
+  :root {
+    --bg: #f7f7f8; --surface: #ffffff; --border: #e2e2e6;
+    --text: #1a1a1e; --text-muted: #666a73;
+    --accent: #2563eb; --accent-text: #ffffff;
+    --success: #16a34a; --danger: #dc2626; --warn: #b45309;
+    --radius: 10px; --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16171a; --surface:#1e1f23; --border:#303138; --text:#eceded; --text-muted:#9a9ea8; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  .sub { color: var(--text-muted); margin: 0 0 28px; }
+  .steps { display:flex; gap:6px; margin-bottom: 28px; }
+  .steps span { flex:1; height:4px; border-radius:2px; background:var(--border); }
+  .steps span.done { background: var(--accent); }
+  .steps span.active { background: var(--accent); opacity:.5; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:24px; margin-bottom:16px; }
+  .card h2 { font-size:1.05rem; margin:0 0 6px; }
+  .card p.hint { color:var(--text-muted); margin:0 0 16px; font-size:.92rem; }
+  label { display:block; font-size:.85rem; font-weight:600; margin: 14px 0 5px; }
+  label:first-of-type { margin-top:0; }
+  input[type=text], input[type=password], input[type=number], select {
+    width:100%; padding:9px 11px; border:1px solid var(--border); border-radius:8px;
+    background:var(--bg); color:var(--text); font-size:.95rem; font-family:inherit;
+  }
+  input:focus, select:focus { outline:2px solid var(--accent); outline-offset:1px; }
+  .row { display:flex; gap:12px; }
+  .row > div { flex:1; }
+  .check-row { display:flex; align-items:center; gap:8px; margin-top:14px; font-size:.92rem; }
+  .actions { display:flex; gap:10px; margin-top:20px; align-items:center; }
+  button { font:inherit; font-weight:600; padding:9px 18px; border-radius:8px; border:1px solid transparent; cursor:pointer; }
+  button.primary { background:var(--accent); color:var(--accent-text); }
+  button.primary:disabled { opacity:.5; cursor:default; }
+  button.ghost { background:transparent; color:var(--text); border-color:var(--border); }
+  button.small { padding:5px 11px; font-size:.85rem; }
+  .list { list-style:none; margin:0; padding:0; }
+  .list li { display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--border); font-size:.92rem; }
+  .list li:last-child { border-bottom:none; }
+  .pill { display:inline-block; padding:2px 9px; border-radius:99px; font-size:.78rem; font-weight:700; }
+  .pill.ok { background:rgba(22,163,74,.15); color:var(--success); }
+  .pill.bad { background:rgba(220,38,38,.15); color:var(--danger); }
+  .pill.pending { background:rgba(102,106,115,.15); color:var(--text-muted); }
+  .status { margin-top:14px; padding:12px 14px; border-radius:8px; font-size:.9rem; white-space:pre-wrap; font-family:var(--mono); }
+  .status.ok { background:rgba(22,163,74,.1); color:var(--success); }
+  .status.bad { background:rgba(220,38,38,.1); color:var(--danger); }
+  .status.info { background:rgba(37,99,235,.08); color:var(--text); }
+  .pubkey { font-family:var(--mono); font-size:.82rem; background:var(--bg); border:1px solid var(--border);
+            border-radius:8px; padding:10px 12px; word-break:break-all; margin:10px 0; }
+  ol.steps-list { margin:10px 0 0; padding-left:20px; font-size:.92rem; }
+  ol.steps-list li { margin-bottom:6px; }
+  pre.log { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px;
+            font-family:var(--mono); font-size:.8rem; max-height:220px; overflow:auto; white-space:pre-wrap; }
+  .banner { border-radius:8px; padding:10px 14px; font-size:.88rem; margin-bottom:16px; }
+  .banner.warn { background:rgba(180,83,9,.12); color:var(--warn); }
+  code.inline { font-family:var(--mono); background:var(--bg); border:1px solid var(--border); border-radius:5px; padding:1px 6px; }
+  .copy-row { display:flex; gap:8px; align-items:center; }
+  .copy-row code.inline { flex:1; overflow-x:auto; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>cPanel toolkit setup</h1>
+  <p class="sub">Same steps as <code class="inline">node bin/wizard.mjs</code>, as a form.</p>
+  <div class="steps" id="stepper"></div>
+  <div id="screens"></div>
+</div>
+
+<script>
+const TOKEN = document.querySelector('meta[name="wizard-token"]').content;
+const $screens = document.getElementById('screens');
+const $stepper = document.getElementById('stepper');
+
+const STATE = {
+  step: 0,
+  conn: { host: "", user: "", port: 22, cpanelPort: 2083, identityFile: "~/.ssh/id_ed25519_cpanel" },
+  keyAuthorized: false,
+  publicKey: "",
+  envVarName: "CPANEL_TOKEN_MAIN",
+  token: "",
+  scaffold: null,
+};
+
+async function api(path, body) {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Wizard-Token": TOKEN },
+    body: JSON.stringify(body ?? {}),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `${path} failed (HTTP ${res.status})`);
+  return data;
+}
+
+const STEP_NAMES = ["Prerequisites", "Connection", "SSH key", "API token", "Save", "Project", "Done"];
+
+function renderStepper() {
+  $stepper.innerHTML = STEP_NAMES.map((_, i) =>
+    `<span class="${i < STATE.step ? "done" : i === STATE.step ? "active" : ""}"></span>`
+  ).join("");
+}
+
+function go(step) { STATE.step = step; render(); }
+
+function render() {
+  renderStepper();
+  const renderers = [renderPrereqs, renderConnection, renderSshKey, renderToken, renderSave, renderProject, renderDone];
+  $screens.innerHTML = "";
+  renderers[STATE.step]();
+}
+
+/* ---------------------------------------------------------------- Step 0 */
+async function renderPrereqs() {
+  const card = card("Checking prerequisites", "Node, git, ssh and tar need to be on your PATH.");
+  const list = el("ul", "list");
+  card.appendChild(list);
+  const status = el("div", "status info"); status.textContent = "Checking...";
+  card.appendChild(status);
+  const actions = el("div", "actions");
+  const btnInstall = button("Install MCP server dependency", "ghost", hide);
+  const btnContinue = button("Continue", "primary", () => go(1));
+  btnContinue.disabled = true;
+  actions.append(btnInstall, btnContinue);
+  card.appendChild(actions);
+  $screens.appendChild(card);
+  hide(btnInstall);
+
+  function hide(b) { b.hidden = true; }
+
+  async function refresh() {
+    const { ok, results, depsInstalled } = await api("/api/prereqs");
+    list.innerHTML = results.map((r) =>
+      `<li>${r.name} <span class="pill ${r.ok ? "ok" : "bad"}">${r.ok ? "OK" : "MISSING"}</span></li>`
+    ).join("") + `<li>MCP dependency <span class="pill ${depsInstalled ? "ok" : "pending"}">${depsInstalled ? "installed" : "not installed"}</span></li>`;
+    status.className = "status " + (ok && depsInstalled ? "ok" : "info");
+    status.textContent = ok
+      ? (depsInstalled ? "All set." : "Prerequisites OK - install the MCP dependency to continue.")
+      : "Install whatever is marked MISSING on your machine, then reload this page.";
+    btnInstall.hidden = depsInstalled;
+    btnContinue.disabled = !(ok && depsInstalled);
+  }
+  btnInstall.onclick = async () => {
+    btnInstall.disabled = true; btnInstall.textContent = "Installing...";
+    try { await api("/api/install-deps"); } catch (e) { status.className = "status bad"; status.textContent = e.message; }
+    await refresh();
+  };
+  await refresh();
+}
+
+/* ---------------------------------------------------------------- Step 1 */
+async function renderConnection() {
+  if (!STATE._connLoaded) {
+    const c = await api("/api/connection");
+    if (c.alreadySet) Object.assign(STATE.conn, c);
+    STATE._connLoaded = true;
+  }
+  const card = card("Hosting account connection", "This is the account every project scaffolded from this toolkit will share.");
+  card.appendChild(field("Host", "host", "text", STATE.conn.host, "server42.yourhost.com"));
+  card.appendChild(field("cPanel username", "user", "text", STATE.conn.user, "myacct"));
+  const row = el("div", "row");
+  row.appendChild(field("SSH port", "port", "number", STATE.conn.port));
+  row.appendChild(field("cPanel port", "cpanelPort", "number", STATE.conn.cpanelPort));
+  card.appendChild(row);
+  card.appendChild(field("SSH private key path", "identityFile", "text", STATE.conn.identityFile));
+  const actions = el("div", "actions");
+  actions.append(
+    button("Back", "ghost", () => go(0)),
+    button("Continue", "primary", () => {
+      for (const id of ["host", "user", "port", "cpanelPort", "identityFile"]) {
+        STATE.conn[id] = document.getElementById(id).value.trim() || STATE.conn[id];
+      }
+      STATE.conn.port = Number(STATE.conn.port); STATE.conn.cpanelPort = Number(STATE.conn.cpanelPort);
+      go(2);
+    })
+  );
+  card.appendChild(actions);
+  $screens.appendChild(card);
+}
+
+/* ---------------------------------------------------------------- Step 2 */
+async function renderSshKey() {
+  const card = card("SSH deploy key", "One key, shared by every project scaffolded from this toolkit.");
+  const status = el("div", "status info"); status.textContent = "Preparing the key...";
+  card.appendChild(status);
+  const pub = el("div", "pubkey"); pub.hidden = true;
+  card.appendChild(pub);
+  const manual = el("div"); manual.hidden = true;
+  manual.innerHTML = `
+    <div class="banner warn">cPanel's key import/authorize calls only exist in its legacy "API 2" interface -
+    the official docs say no UAPI equivalent exists. This one click cannot be scripted reliably.</div>
+    <ol class="steps-list">
+      <li>In cPanel: <b>Security → SSH Access → Manage SSH Keys → Import Key</b></li>
+      <li>Paste the public key above and import it</li>
+      <li>Back on the key list, click <b>Manage</b> next to it, then <b>Authorize</b></li>
+    </ol>`;
+  card.appendChild(manual);
+  const testBtn = button("Test connection", "ghost", testNow);
+  const testStatus = el("div", "status", "hidden");
+  const actions = el("div", "actions");
+  const btnContinue = button("Continue", "primary", () => go(3));
+  actions.append(button("Back", "ghost", () => go(1)), testBtn, btnContinue);
+  card.appendChild(testStatus);
+  card.appendChild(actions);
+  $screens.appendChild(card);
+
+  const keyInfo = await api("/api/ensure-key", { identityFile: STATE.conn.identityFile });
+  STATE.publicKey = keyInfo.publicKey;
+  pub.hidden = false;
+  const copyRow = el("div", "copy-row");
+  const codeEl = document.createElement("code"); codeEl.className = "inline"; codeEl.textContent = keyInfo.publicKey;
+  const copyBtn = button("Copy", "ghost small", () => { navigator.clipboard?.writeText(keyInfo.publicKey); copyBtn.textContent = "Copied"; setTimeout(() => copyBtn.textContent = "Copy", 1200); });
+  copyRow.append(codeEl, copyBtn);
+  pub.appendChild(copyRow);
+  status.textContent = keyInfo.existed ? "Using the existing key at that path." : "Generated a new dedicated deploy key (no passphrase - this toolkit's SSH calls run unattended).";
+
+  await testNow(true);
+
+  async function testNow(silent) {
+    if (!silent) { testBtn.disabled = true; testStatus.hidden = false; testStatus.className = "status info"; testStatus.textContent = "Testing..."; }
+    const r = await api("/api/test-connection", STATE.conn);
+    STATE.keyAuthorized = r.ok;
+    manual.hidden = r.ok;
+    testStatus.hidden = false;
+    testStatus.className = "status " + (r.ok ? "ok" : "bad");
+    testStatus.textContent = r.ok ? "✓ Connected - the key is authorized." : ("✗ " + r.detail);
+    testBtn.disabled = false;
+  }
+}
+
+/* ---------------------------------------------------------------- Step 3 */
+async function renderToken() {
+  if (!STATE._tokenLoaded) {
+    const t = await api("/api/token-state");
+    STATE.envVarName = t.envVarName;
+    STATE._tokenAlreadySet = t.alreadySet;
+    STATE._tokenLoaded = true;
+  }
+  const card = card("cPanel API token", "cPanel → Security → Manage API Tokens → Create. Not your account password.");
+  if (STATE._tokenAlreadySet) {
+    const banner = el("div", "banner warn");
+    banner.textContent = `An existing ${STATE.envVarName} was found in .env. Leave the field blank to keep it, or paste a new one to replace it.`;
+    card.appendChild(banner);
+  }
+  card.appendChild(field("API token", "token", "password", "", "pasted here, saved only to your local .env"));
+  const actions = el("div", "actions");
+  actions.append(
+    button("Back", "ghost", () => go(2)),
+    button("Continue", "primary", () => {
+      const v = document.getElementById("token").value.trim();
+      if (v) STATE.token = v;
+      if (!v && !STATE._tokenAlreadySet) { alert("A token is required."); return; }
+      go(4);
+    })
+  );
+  card.appendChild(actions);
+  $screens.appendChild(card);
+}
+
+/* ---------------------------------------------------------------- Step 4 */
+async function renderSave() {
+  const card = card("Save configuration", "Review, then write config/sites.json and .env.");
+  const list = el("ul", "list");
+  list.innerHTML = [
+    ["Host", STATE.conn.host], ["User", STATE.conn.user], ["SSH port", STATE.conn.port],
+    ["cPanel port", STATE.conn.cpanelPort], ["SSH key", STATE.conn.identityFile],
+    ["Key authorized", STATE.keyAuthorized ? "yes" : "not confirmed"],
+    ["API token", STATE.token ? "new value" : "keeping existing"],
+  ].map(([k, v]) => `<li><span>${k}</span><span>${v}</span></li>`).join("");
+  card.appendChild(list);
+  if (!STATE.keyAuthorized) {
+    const banner = el("div", "banner warn");
+    banner.textContent = "The SSH connection was not confirmed - deploys will fail until the key is authorized in cPanel.";
+    card.insertBefore(banner, list);
+  }
+  const status = el("div", "status", "hidden");
+  const actions = el("div", "actions");
+  const saveBtn = button("Save configuration", "primary", async () => {
+    saveBtn.disabled = true;
+    try {
+      const r = await api("/api/save-connection", { conn: STATE.conn, token: STATE.token });
+      status.hidden = false; status.className = "status ok";
+      status.textContent = `Wrote ${r.configPath} and ${r.envPath}.`;
+      setTimeout(() => go(5), 500);
+    } catch (e) {
+      status.hidden = false; status.className = "status bad"; status.textContent = e.message; saveBtn.disabled = false;
+    }
+  });
+  actions.append(button("Back", "ghost", () => go(3)), saveBtn);
+  card.appendChild(status);
+  card.appendChild(actions);
+  $screens.appendChild(card);
+}
+
+/* ---------------------------------------------------------------- Step 5 */
+async function renderProject() {
+  if (!STATE._templates) STATE._templates = (await api("/api/templates")).templates;
+  const card = card("Scaffold a project", "Creates a project pre-wired with every agent, skill and this toolkit's MCP server.");
+  const sel = document.createElement("select"); sel.id = "template";
+  sel.innerHTML = STATE._templates.map((t) => `<option ${t === "php-site" ? "selected" : ""}>${t}</option>`).join("");
+  card.appendChild(labelFor("Template", sel));
+  card.appendChild(field("Site key", "key", "text", "", "acme"));
+  card.appendChild(field("Label", "label", "text", "", "Acme Kft"));
+  card.appendChild(field("Domain", "domain", "text", "", "acme.hu"));
+  card.appendChild(field("Directory", "dir", "text", "", "C:/xprojects/acme"));
+  const check = el("label", "check-row");
+  check.innerHTML = `<input type="checkbox" id="standalone"> Standalone (vendor the MCP server in - for Claude Code Cloud or its own repo)`;
+  card.appendChild(check);
+  const log = document.createElement("pre"); log.className = "log"; log.hidden = true;
+  card.appendChild(log);
+  const status = el("div", "status", "hidden");
+  card.appendChild(status);
+  const actions = el("div", "actions");
+  const runBtn = button("Create project", "primary", async () => {
+    const key = document.getElementById("key").value.trim();
+    if (!key) { alert("Site key is required."); return; }
+    const proj = {
+      template: sel.value, key,
+      label: document.getElementById("label").value.trim() || key,
+      domain: document.getElementById("domain").value.trim() || `${key}.example`,
+      dir: document.getElementById("dir").value.trim() || `${key}`,
+      cpanelUser: STATE.conn.user,
+      standalone: document.getElementById("standalone").checked,
+    };
+    runBtn.disabled = true; runBtn.textContent = "Creating...";
+    log.hidden = false; log.textContent = "Scaffolding...";
+    const r = await api("/api/scaffold", proj);
+    log.textContent = r.output;
+    if (!r.ok) { status.hidden = false; status.className = "status bad"; status.textContent = "Scaffolding failed."; runBtn.disabled = false; runBtn.textContent = "Create project"; return; }
+    status.hidden = false; status.className = "status info"; status.textContent = "Running preflight...";
+    const pf = await api("/api/preflight", proj);
+    STATE.scaffold = { proj, preflight: pf };
+    go(6);
+  });
+  actions.append(
+    button("Back", "ghost", () => go(4)),
+    button("Skip for now", "ghost", () => { STATE.scaffold = null; go(6); }),
+    runBtn
+  );
+  card.appendChild(actions);
+  $screens.appendChild(card);
+}
+
+/* ---------------------------------------------------------------- Step 6 */
+function renderDone() {
+  const card = card("Done", "");
+  if (STATE.scaffold) {
+    const { proj, preflight } = STATE.scaffold;
+    const list = el("ul", "list");
+    const checks = preflight.result?.checks || [];
+    list.innerHTML = checks.map((c) => `<li>${c.name} <span class="pill ${c.ok ? "ok" : "bad"}">${c.ok ? "OK" : "FAIL"}</span></li>`).join("")
+      || "<li>Preflight did not return a result - check the terminal running wizard-gui.mjs.</li>";
+    card.appendChild(list);
+    const cmd = document.createElement("div"); cmd.className = "pubkey";
+    cmd.textContent = `cd ${proj.dir} && claude`;
+    const p = document.createElement("p"); p.className = "hint"; p.style.marginTop = "14px";
+    p.innerHTML = "Open in Claude Code, then run <code class='inline'>/start</code>. Desktop: File → Open Folder → that directory.";
+    card.appendChild(p);
+    card.appendChild(cmd);
+  } else {
+    const p = document.createElement("p"); p.className = "hint";
+    p.innerHTML = "Connection configured. Scaffold a project any time with <code class='inline'>node bin/new-project.mjs</code>.";
+    card.appendChild(p);
+  }
+  const note = document.createElement("p"); note.className = "hint";
+  note.textContent = "You can close this tab and stop the server (Ctrl+C in its terminal) whenever you like.";
+  card.appendChild(note);
+  $screens.appendChild(card);
+}
+
+/* --------------------------------------------------------------- helpers */
+function card(title, hint) {
+  const c = el("div", "card");
+  const h = document.createElement("h2"); h.textContent = title; c.appendChild(h);
+  if (hint) { const p = document.createElement("p"); p.className = "hint"; p.textContent = hint; c.appendChild(p); }
+  return c;
+}
+function el(tag, cls, hidden) { const e = document.createElement(tag); if (cls) e.className = cls; if (hidden) e.hidden = true; return e; }
+function button(text, cls, onClick) { const b = document.createElement("button"); b.type = "button"; b.className = cls; b.textContent = text; b.onclick = onClick; return b; }
+function field(labelText, id, type, value, placeholder) {
+  const wrap = document.createDocumentFragment();
+  const l = document.createElement("label"); l.textContent = labelText; l.htmlFor = id;
+  const i = document.createElement("input"); i.type = type; i.id = id; i.value = value ?? ""; if (placeholder) i.placeholder = placeholder;
+  const box = document.createElement("div"); box.append(l, i);
+  return box;
+}
+function labelFor(text, inputEl) {
+  const box = document.createElement("div");
+  const l = document.createElement("label"); l.textContent = text;
+  box.append(l, inputEl);
+  return box;
+}
+
+render();
+</script>
+</body>
+</html>

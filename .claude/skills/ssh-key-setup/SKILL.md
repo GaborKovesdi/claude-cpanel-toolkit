@@ -9,7 +9,7 @@ This toolkit deliberately uses **one key for the whole hosting account**, declar
 
 Per-project keys are still possible — a project's `cpanel.site.json` can set its own `ssh.identityFile` — but that should be a deliberate exception with a reason.
 
-**The fast path:** `node bin/wizard.mjs` from the toolkit root does everything in this skill for you — generates the key, prints the public half, walks you through the one manual cPanel click, and verifies the result. Read on if you want to do it by hand, or to understand what the wizard is doing.
+**The fast path:** `node bin/wizard.mjs` (terminal) or `node bin/wizard-gui.mjs` (a local web form - same steps, a copy button on the public key, a password-masked token field) does everything in this skill for you — generates the key, shows the public half, walks you through the one manual cPanel click, and verifies the result. Read on if you want to do it by hand, or to understand what the wizard is doing.
 
 ## 1. Create the key
 

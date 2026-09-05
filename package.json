@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "wizard": "node bin/wizard.mjs",
+    "wizard-gui": "node bin/wizard-gui.mjs",
     "setup": "node bin/setup.mjs",
     "new": "node bin/new-project.mjs",
     "cpanel": "node mcp-servers/cpanel-mcp/bin/cpanelctl.mjs"

@@ -49,8 +49,11 @@ try {
 }
 
 // 2 & 3. Config and env scaffolds
+// Seeded from sites.starter.json (genuine CHANGEME placeholders), never
+// sites.example.json - that file's defaults are a worked illustration
+// (demousr@server42...) for a human to read, not values to adopt as real.
 console.log(copyIfMissing(
-  path.join(ROOT, "config", "sites.example.json"),
+  path.join(ROOT, "config", "sites.starter.json"),
   path.join(ROOT, "config", "sites.json"),
   "site config"
 ));

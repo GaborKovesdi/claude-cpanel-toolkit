@@ -21,19 +21,24 @@ It covers the whole path — spec and architecture, UX and visual design, fronte
 ```
 agents/
 ├─ .claude/
-│  ├─ agents/          17 subagent definitions
-│  └─ skills/          22 skills (slash commands)
+│  ├─ agents/           17 subagent definitions
+│  └─ skills/           22 skills (slash commands)
 ├─ mcp-servers/
-│  └─ cpanel-mcp/       the MCP server + a CLI over the same tools
+│  └─ cpanel-mcp/        the MCP server + a CLI over the same tools
 ├─ templates/
-│  ├─ php-site/         project template - PHP site
-│  └─ node-app/         project template - Passenger Node app
+│  ├─ php-site/          project template - PHP site
+│  └─ node-app/          project template - Passenger Node app
 ├─ config/
-│  ├─ sites.json        YOUR config (gitignored, no secrets)
-│  └─ sites.example.json
-├─ bin/new-project.mjs  scaffold a project wired to this toolkit
-├─ .mcp.json            cpanel + playwright + github MCP servers
-└─ .env                 the only place secrets live (gitignored)
+│  ├─ sites.json         YOUR config (gitignored, no secrets)
+│  ├─ sites.starter.json the CHANGEME starting point sites.json is created from
+│  └─ sites.example.json a worked, fully-illustrated example (reference only)
+├─ bin/
+│  ├─ wizard.mjs         interactive terminal setup, start to first project
+│  ├─ wizard-gui.mjs      the same, as a local web form
+│  ├─ new-project.mjs    scaffold a project wired to this toolkit
+│  └─ setup.mjs          the non-interactive building block the wizards call
+├─ .mcp.json             cpanel + playwright + github MCP servers
+└─ .env                  the only place secrets live (gitignored)
 ```
 
 ## Install from GitHub
@@ -48,7 +53,9 @@ node bin/wizard.mjs
 
 `bin/wizard.mjs` is the fastest path from a bare clone to a working, preflight-verified project: it installs the dependency, generates the shared SSH deploy key, walks you through the one manual click cPanel requires (see below), saves your connection details, and scaffolds your first project — all in one guided run. Safe to re-run: it reuses anything you already filled in rather than asking again.
 
-It automates everything except one step, deliberately: **authorizing the SSH key in cPanel**. cPanel's key import/authorize calls only exist in its legacy "API 2" interface — the official docs say plainly that no UAPI equivalent exists — so scripting against that older, less-verified surface to change what can log into your account is exactly the kind of shortcut this toolkit's own agents are written to refuse. The wizard generates the key, prints the public half, and waits for you to import and authorize it in the cPanel UI (Security → SSH Access → Manage SSH Keys), then verifies the result itself before continuing.
+Prefer clicking through a form over typing terminal answers? Run `node bin/wizard-gui.mjs` instead — same steps, same automation, as a small local web page it opens for you (bound to `127.0.0.1` only, protected by a random per-run token, never reachable from your network). Nothing about what it does differs from the terminal version; it just replaces typed prompts with fields, dropdowns and a copy button on the SSH key.
+
+Both automate everything except one step, deliberately: **authorizing the SSH key in cPanel**. cPanel's key import/authorize calls only exist in its legacy "API 2" interface — the official docs say plainly that no UAPI equivalent exists — so scripting against that older, less-verified surface to change what can log into your account is exactly the kind of shortcut this toolkit's own agents are written to refuse. The wizard generates the key, shows you the public half, and waits for you to import and authorize it in the cPanel UI (Security → SSH Access → Manage SSH Keys), then verifies the result itself before continuing.
 
 Prefer the manual route, or want to understand each piece first? It's below.
 

@@ -8,7 +8,7 @@ This repository is a **reusable kit**, not a website. Nothing here is deployed. 
 - `.claude/skills/` — 22 skills, one directory each with a `SKILL.md`.
 - `mcp-servers/cpanel-mcp/` — the cPanel MCP server. `src/tools.mjs` is the single tool registry; `src/server.mjs` (MCP over stdio) and `bin/cpanelctl.mjs` (CLI) are both thin frontends over it.
 - `templates/` — project templates consumed by `bin/new-project.mjs` (`--standalone` vendors the MCP server into the project instead of referencing this clone by absolute path - needed for Claude Code Cloud or any repo that has to stand on its own).
-- `bin/wizard.mjs` — the interactive, guided setup path (calls `setup.mjs` and `new-project.mjs` under the hood; adds SSH key generation, connection gathering, and a post-scaffold preflight check).
+- `bin/lib/wizard-engine.mjs` — the guided setup's actual work (prereq checks, key generation, config/env writing, scaffolding, preflight), with no UI attached. `bin/wizard.mjs` (terminal) and `bin/wizard-gui.mjs` (local web form, `bin/gui/wizard.html`) are both thin frontends over it - change behaviour here, not in either frontend, or the two will drift.
 - `config/sites.json` — local, gitignored, holds no secret values.
 
 ## Rules that matter here
@@ -24,6 +24,8 @@ This repository is a **reusable kit**, not a website. Nothing here is deployed. 
 **No dependencies in the MCP server beyond the SDK.** It uses `node:https`, `node:child_process` and the system `ssh`/`tar`. That is deliberate: this thing has to keep working on a machine that has not been touched in a year.
 
 **`rsync` is not available on this machine.** Uploads stream `tar czf - | ssh 'tar xzf -'`. Do not write code that assumes rsync.
+
+**`wizard-gui.mjs`'s local server binds `127.0.0.1` only and checks a random per-run token on every `/api/*` call.** It can run `ssh-keygen`, write `config/sites.json`, and write your API token to `.env` - never widen its bind address, and never add a route that skips the token check, even for something that looks read-only.
 
 **Interactive `bin/` scripts must not use `readline/promises`' `question()`.** It has a real bug: the second and later `question()` calls hang forever when stdin is piped rather than a live TTY (confirmed while building `wizard.mjs` - the promise never settles because lines that already arrived in one chunk are not replayed to a listener attached after the fact). Use plain `node:readline`, drive it off the `line` event, and queue lines yourself (see `wizard.mjs`'s `nextLine()`) - that pattern is correct whether stdin is a real terminal or a redirected file, which matters because these scripts get run both ways (a human typing, and tests/CI piping canned answers).
 

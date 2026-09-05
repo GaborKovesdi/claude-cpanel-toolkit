@@ -32,7 +32,7 @@ cpanel_ssh_exec site=<site> command="ls -ld ~/public_html ~/sites 2>&1"
 
 ## 3. Write the config entry
 
-Copy the matching block from `config/sites.example.json` into `config/sites.json` (create it if this is the first site — it is gitignored, unlike the example). Fill in real values.
+If `config/sites.json` does not exist yet (it is gitignored, so a fresh clone has none), create it from `config/sites.starter.json` — genuine `CHANGEME` placeholders, not the worked example. Then copy the matching site *block* from `config/sites.example.json` in as a shape reference and fill in real values. (`node bin/wizard.mjs` / `node bin/wizard-gui.mjs` does the `defaults` half of this for you already, interactively.)
 
 **Secrets never go in this file.** It records only the *name* of the environment variable: `"apiTokenEnv": "CPANEL_TOKEN_DEMO"`. Put the value in `.env` at the toolkit root, which is also gitignored.
 

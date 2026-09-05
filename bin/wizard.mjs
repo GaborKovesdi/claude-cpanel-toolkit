@@ -1,42 +1,24 @@
 #!/usr/bin/env node
 /**
- * Interactive setup wizard: goes from a fresh toolkit clone to a scaffolded,
+ * Interactive TERMINAL setup wizard: goes from a fresh toolkit clone to a scaffolded,
  * preflight-verified project in one guided run.
  *
  *   node bin/wizard.mjs
  *
- * What it automates:
- *   - installs the MCP server's dependency
- *   - generates the shared SSH deploy key (if one is not already configured)
- *   - writes real values into config/sites.json (defaults.ssh, defaults.cpanel) and .env
- *   - verifies raw SSH connectivity before going any further
- *   - scaffolds a project with bin/new-project.mjs
- *   - runs cpanel_preflight against the new project's staging environment
- *
- * What it deliberately does NOT automate:
- *   - authorizing the SSH key in cPanel. cPanel's SSH key import/authorize calls are
- *     only exposed through the legacy "cPanel API 2" interface, not UAPI - the official
- *     docs say plainly that no UAPI equivalent exists. Scripting against an old,
- *     less-verified interface to change what can log into the account is exactly the
- *     kind of shortcut this toolkit's own agents are written to refuse. So the wizard
- *     generates the key, prints the public half, and waits for a human to import and
- *     authorize it in the cPanel UI - then verifies the result itself.
+ * Prefer a form instead of typing into a terminal? node bin/wizard-gui.mjs runs the
+ * same steps as a small local web page. Both are thin frontends over
+ * bin/lib/wizard-engine.mjs, which does the actual work - see that file for exactly
+ * what is automated and what deliberately is not (importing/authorizing the SSH key
+ * in cPanel - see the comment there for why).
  *
  * Safe to re-run: it detects values you already filled in (anything that is not the
  * CHANGEME placeholder) and offers to keep them rather than asking again.
  */
 import fs from "node:fs";
 import path from "node:path";
-import os from "node:os";
 import readline from "node:readline";
 import { stdin, stdout } from "node:process";
-import { execSync, execFileSync, spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
-
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const SERVER_DIR = path.join(ROOT, "mcp-servers", "cpanel-mcp");
-const CONFIG_PATH = path.join(ROOT, "config", "sites.json");
-const ENV_PATH = path.join(ROOT, ".env");
+import * as engine from "./lib/wizard-engine.mjs";
 
 // A hand-rolled line queue rather than readline/promises' question(): that API has a
 // known issue where the second and later question() calls hang forever when stdin is
@@ -80,102 +62,55 @@ function fail(message) {
   process.exit(1);
 }
 
-function haveCommand(cmd) {
-  const probe = process.platform === "win32" ? "where" : "which";
-  const r = spawnSync(probe, [cmd], { stdio: "ignore" });
-  return r.status === 0;
-}
-
 /* ------------------------------------------------------------------ steps */
 
-function checkPrerequisites() {
+function runPrerequisiteCheck() {
   heading("Checking prerequisites");
-  const nodeMajor = Number(process.versions.node.split(".")[0]);
-  if (nodeMajor < 20) fail(`Node 20+ required, found ${process.versions.node}.`);
-  say(`  node ${process.versions.node}  ✓`);
-  for (const cmd of ["git", "ssh", "ssh-keygen", "tar"]) {
-    if (!haveCommand(cmd)) fail(`"${cmd}" was not found on PATH. Install it and re-run.`);
-    say(`  ${cmd}  ✓`);
-  }
+  const { ok, results } = engine.checkPrerequisites();
+  for (const r of results) say(`  ${r.name} ${r.detail}  ${r.ok ? "✓" : "✗"}`);
+  if (!ok) fail("Install whatever is missing above, then re-run.");
 }
 
-function installServerDeps() {
+function runInstallDeps() {
   heading("MCP server dependency");
-  if (fs.existsSync(path.join(SERVER_DIR, "node_modules"))) {
-    say("  already installed, skipping.");
-    return;
-  }
+  if (engine.serverDepsInstalled()) { say("  already installed, skipping."); return; }
   say("  running npm install in mcp-servers/cpanel-mcp ...");
-  // execSync goes through a shell, which npm's .cmd wrapper needs on Windows
-  // (execFileSync without shell:true throws EINVAL for .cmd there). Safe here - the
-  // whole command is a fixed literal, nothing from user input is interpolated.
-  execSync("npm install --no-audit --no-fund", { cwd: SERVER_DIR, stdio: "inherit" });
-}
-
-function readSitesJson() {
-  if (!fs.existsSync(CONFIG_PATH)) {
-    const example = path.join(ROOT, "config", "sites.example.json");
-    fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
-    const template = JSON.parse(fs.readFileSync(example, "utf8"));
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify({ defaults: template.defaults, sites: {} }, null, 2) + "\n", "utf8");
-  }
-  return JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"));
-}
-
-function writeSitesJson(cfg) {
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2) + "\n", "utf8");
-}
-
-function isPlaceholder(v) {
-  return !v || /CHANGEME/i.test(v);
+  engine.installServerDeps();
 }
 
 async function gatherConnection(cfg) {
   heading("Hosting account connection");
-  const ssh = cfg.defaults.ssh ?? {};
-  const cpanel = cfg.defaults.cpanel ?? {};
-
-  const alreadySet = !isPlaceholder(ssh.host) && !isPlaceholder(cpanel.user);
-  if (alreadySet && await askYesNo(`Found existing connection details (${cpanel.user}@${ssh.host}) - reuse them?`, true)) {
-    return { host: ssh.host, port: ssh.port ?? 22, cpanelPort: cpanel.port ?? 2083, user: cpanel.user, identityFile: ssh.identityFile ?? "~/.ssh/id_ed25519_cpanel" };
+  const c = engine.currentConnection(cfg);
+  if (c.alreadySet && await askYesNo(`Found existing connection details (${c.user}@${c.host}) - reuse them?`, true)) {
+    return c;
   }
-
   say("This is the account every project scaffolded from this toolkit will share.");
-  const host = await ask("cPanel/SSH host (e.g. server42.yourhost.com)", isPlaceholder(ssh.host) ? undefined : ssh.host);
-  const user = await ask("cPanel account username", isPlaceholder(cpanel.user) ? undefined : cpanel.user);
-  const port = await ask("SSH port", String(ssh.port ?? 22));
-  const cpanelPort = await ask("cPanel port", String(cpanel.port ?? 2083));
-  const identityFile = await ask("SSH private key path", ssh.identityFile ?? "~/.ssh/id_ed25519_cpanel");
+  const host = await ask("cPanel/SSH host (e.g. server42.yourhost.com)", c.host || undefined);
+  const user = await ask("cPanel account username", c.user || undefined);
+  const port = await ask("SSH port", String(c.port));
+  const cpanelPort = await ask("cPanel port", String(c.cpanelPort));
+  const identityFile = await ask("SSH private key path", c.identityFile);
   return { host, port: Number(port), cpanelPort: Number(cpanelPort), user, identityFile };
 }
 
-function expandHome(p) {
-  return p.startsWith("~") ? path.join(os.homedir(), p.slice(1)) : p;
-}
-
-async function ensureSshKey(conn) {
+async function ensureKeyAuthorized(conn) {
   heading("SSH deploy key");
-  const keyPath = expandHome(conn.identityFile);
-  const pubPath = `${keyPath}.pub`;
-
-  if (fs.existsSync(keyPath)) {
+  const existed = engine.keyExists(conn.identityFile);
+  const { generated, publicKey } = engine.ensureSshKey(conn.identityFile);
+  if (existed) {
     say(`  found an existing key at ${conn.identityFile} - keeping it.`);
-  } else {
-    say(`  no key at ${conn.identityFile} yet. Generating one now.`);
+  } else if (generated) {
+    say(`  no key at ${conn.identityFile} yet. Generated one.`);
     say("  no passphrase, on purpose: this toolkit's SSH calls run with BatchMode=yes for");
     say("  unattended deploys, which cannot answer a passphrase prompt. Treat this as a");
     say("  single-purpose deploy key - do not reuse it as your personal login key.");
-    fs.mkdirSync(path.dirname(keyPath), { recursive: true });
-    execFileSync("ssh-keygen", ["-t", "ed25519", "-a", "100", "-f", keyPath, "-N", "", "-C", `claude-toolkit@${os.hostname()}`]);
   }
 
-  const authorized = await checkKeyAuthorized(conn, keyPath);
-  if (authorized) {
+  if (engine.checkKeyAuthorized(conn).ok) {
     say("  connectivity test passed - this key is already authorized on the account.");
-    return { identityFile: conn.identityFile, alreadyAuthorized: true };
+    return;
   }
 
-  const pub = fs.readFileSync(pubPath, "utf8").trim();
   say(`
   ── ONE MANUAL STEP - this cannot be scripted reliably ──
   cPanel's SSH key import/authorize calls only exist in its legacy "API 2"
@@ -186,48 +121,27 @@ async function ensureSshKey(conn) {
     1. In cPanel: Security -> SSH Access -> Manage SSH Keys -> Import Key
     2. Paste this public key and import it:
 
-  ${pub}
+  ${publicKey}
 
     3. Back on the key list, click "Manage" next to it, then "Authorize".
 `);
   await ask("Press Enter once you have imported AND authorized the key above");
 
   for (let attempt = 1; attempt <= 3; attempt++) {
-    if (await checkKeyAuthorized(conn, keyPath)) {
-      say("  ✓ connectivity confirmed - the key is authorized.");
-      return { identityFile: conn.identityFile, alreadyAuthorized: false };
-    }
-    say(`  ✗ still cannot connect (attempt ${attempt}/3).`);
+    const r = engine.checkKeyAuthorized(conn);
+    if (r.ok) { say("  ✓ connectivity confirmed - the key is authorized."); return; }
+    say(`  ✗ still cannot connect (attempt ${attempt}/3): ${r.detail}`);
     if (attempt < 3 && !(await askYesNo("  Try again?", true))) break;
   }
-  const proceed = await askYesNo(
-    "  Continue without confirmed SSH access? (deploys will fail until this is fixed)", false
-  );
-  if (!proceed) fail("Stopping here. Re-run the wizard once the key is authorized.");
-  return { identityFile: conn.identityFile, alreadyAuthorized: false };
-}
-
-function checkKeyAuthorized(conn, keyPath) {
-  const r = spawnSync(
-    "ssh",
-    [
-      "-o", "BatchMode=yes",
-      "-o", "StrictHostKeyChecking=accept-new",
-      "-o", "ConnectTimeout=12",
-      "-p", String(conn.port),
-      "-i", keyPath,
-      `${conn.user}@${conn.host}`,
-      "echo cpanel-mcp-ok",
-    ],
-    { encoding: "utf8" }
-  );
-  return r.status === 0 && (r.stdout || "").includes("cpanel-mcp-ok");
+  if (!(await askYesNo("  Continue without confirmed SSH access? (deploys will fail until this is fixed)", false))) {
+    fail("Stopping here. Re-run the wizard once the key is authorized.");
+  }
 }
 
 async function gatherToken(cfg) {
   heading("cPanel API token");
-  const envVarName = cfg.defaults.cpanel?.apiTokenEnv || "CPANEL_TOKEN_MAIN";
-  const existing = readEnvVar(envVarName);
+  const envVarName = engine.apiTokenEnvName(cfg);
+  const existing = engine.readEnvVar(envVarName);
   if (existing && await askYesNo(`Found an existing ${envVarName} in .env - reuse it?`, true)) {
     return { envVarName, token: existing };
   }
@@ -239,79 +153,18 @@ async function gatherToken(cfg) {
   return { envVarName, token };
 }
 
-function readEnvVar(name) {
-  if (!fs.existsSync(ENV_PATH)) return null;
-  for (const line of fs.readFileSync(ENV_PATH, "utf8").split(/\r?\n/)) {
-    const [k, ...rest] = line.split("=");
-    if (k?.trim() === name) return rest.join("=").trim() || null;
-  }
-  return null;
-}
-
-function writeEnvVar(name, value) {
-  let lines = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, "utf8").split(/\r?\n/) : [];
-  let found = false;
-  lines = lines.map((line) => {
-    if (line.split("=")[0]?.trim() === name) { found = true; return `${name}=${value}`; }
-    return line;
-  });
-  if (!found) lines.push(`${name}=${value}`);
-  fs.writeFileSync(ENV_PATH, lines.join("\n").replace(/\n+$/, "\n"), "utf8");
-}
-
-function saveConnection(cfg, conn, keyInfo, tokenInfo) {
-  heading("Saving configuration");
-  cfg.defaults.ssh = { host: conn.host, port: conn.port, user: conn.user, identityFile: keyInfo.identityFile };
-  cfg.defaults.cpanel = { host: conn.host, port: conn.cpanelPort, user: conn.user, apiTokenEnv: tokenInfo.envVarName, insecureTLS: false };
-  writeSitesJson(cfg);
-  writeEnvVar(tokenInfo.envVarName, tokenInfo.token);
-  say(`  wrote ${path.relative(ROOT, CONFIG_PATH)} and ${path.relative(ROOT, ENV_PATH)}.`);
-}
-
 async function gatherProject(conn) {
   heading("Scaffold a project");
   if (!(await askYesNo("Scaffold a project now?", true))) return null;
-
-  const templates = fs.readdirSync(path.join(ROOT, "templates"), { withFileTypes: true })
-    .filter((d) => d.isDirectory()).map((d) => d.name);
+  const templates = engine.listTemplates();
   const template = await ask(`Template (${templates.join(" / ")})`, templates.includes("php-site") ? "php-site" : templates[0]);
   const key = await ask("Site key (used in config and remote paths, e.g. acme)");
   if (!key) fail("A site key is required.");
   const label = await ask("Human label", key);
   const domain = await ask("Live domain (e.g. acme.hu)", `${key}.example`);
-  const dir = await ask("Directory to create it in", path.join(path.dirname(ROOT), key));
+  const dir = await ask("Directory to create it in", path.join(path.dirname(engine.ROOT), key));
   const standalone = await askYesNo("Standalone mode? (vendors the MCP server in - needed for Claude Code Cloud / its own repo)", false);
-
   return { template, key, label, domain, dir: path.resolve(dir), cpanelUser: conn.user, standalone };
-}
-
-function scaffoldProject(proj) {
-  heading("Running the scaffolder");
-  const args = [
-    path.join(ROOT, "bin", "new-project.mjs"),
-    "--template", proj.template, "--dir", proj.dir, "--key", proj.key,
-    "--label", proj.label, "--domain", proj.domain, "--cpanel-user", proj.cpanelUser,
-  ];
-  if (proj.standalone) args.push("--standalone");
-  const r = spawnSync(process.execPath, args, { stdio: "inherit" });
-  if (r.status !== 0) fail("Scaffolding failed - see the output above.");
-}
-
-function verifyProject(proj) {
-  heading("Verifying with a preflight check");
-  const cpanelctl = proj.standalone
-    ? path.join(proj.dir, "mcp-servers", "cpanel-mcp", "bin", "cpanelctl.mjs")
-    : path.join(SERVER_DIR, "bin", "cpanelctl.mjs");
-  const r = spawnSync(process.execPath, [cpanelctl, "cpanel_preflight", `site=${proj.key}`, "environment=staging"], {
-    cwd: proj.dir, stdio: "inherit",
-  });
-  if (r.status !== 0) {
-    say("\n  Preflight reported problems above - expected the first time, since the remote");
-    say("  paths in cpanel.site.json are still guesses. Fix them, then re-run preflight by hand:");
-    say(`    cpanel_preflight site=${proj.key} environment=staging`);
-  } else {
-    say("  ✓ preflight passed. This project is ready to deploy to staging.");
-  }
 }
 
 /* ------------------------------------------------------------------- main */
@@ -321,20 +174,37 @@ async function main() {
   say("This walks through everything that can be automated: dependencies, the shared");
   say("SSH key, the connection details, scaffolding a project, and a first preflight.");
   say("The one thing it cannot do for you is click Authorize on the key in cPanel.\n");
+  say("Prefer a form? Ctrl+C and run: node bin/wizard-gui.mjs\n");
 
-  checkPrerequisites();
-  installServerDeps();
+  runPrerequisiteCheck();
+  runInstallDeps();
 
-  const cfg = readSitesJson();
+  const cfg = engine.readSitesJson();
   const conn = await gatherConnection(cfg);
-  const keyInfo = await ensureSshKey(conn);
+  await ensureKeyAuthorized(conn);
   const tokenInfo = await gatherToken(cfg);
-  saveConnection(cfg, conn, keyInfo, tokenInfo);
+  heading("Saving configuration");
+  const written = engine.saveConnection(cfg, conn, tokenInfo);
+  say(`  wrote ${written.configPath} and ${written.envPath}.`);
 
   const proj = await gatherProject(conn);
   if (proj) {
-    scaffoldProject(proj);
-    verifyProject(proj);
+    heading("Running the scaffolder");
+    const scaffold = engine.scaffoldProject(proj);
+    say(scaffold.output);
+    if (!scaffold.ok) fail("Scaffolding failed - see the output above.");
+
+    heading("Verifying with a preflight check");
+    const pf = engine.runPreflight(proj);
+    if (pf.result) say(JSON.stringify(pf.result, null, 2));
+    if (pf.ok) {
+      say("  ✓ preflight passed. This project is ready to deploy to staging.");
+    } else {
+      say("\n  Preflight reported problems above - expected the first time, since the remote");
+      say("  paths in cpanel.site.json are still guesses. Fix them, then re-run preflight by hand:");
+      say(`    cpanel_preflight site=${proj.key} environment=staging`);
+    }
+
     say(`
 Done. Open Claude Code in the new project and run /start:
 

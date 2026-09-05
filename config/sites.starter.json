@@ -1,0 +1,35 @@
+{
+  "$comment": [
+    "The blank starting point for config/sites.json (which is gitignored and does not",
+    "exist in a fresh clone). setup.mjs, wizard.mjs and wizard-gui.mjs all copy THIS file,",
+    "never config/sites.example.json - that file's defaults are a worked illustration",
+    "(demousr@server42...) meant for a human to read, not values a script should adopt",
+    "as if they were real. Copying the illustration here instead of genuine CHANGEME",
+    "placeholders was a real bug: a fresh clone would show the wizard's 'found existing",
+    "connection details - reuse them?' prompt against fictional data before you had",
+    "entered anything.",
+    "Fill in the three CHANGEME values yourself, or let a wizard do it interactively."
+  ],
+
+  "defaults": {
+    "ssh": {
+      "host": "CHANGEME.hosting.example",
+      "port": 22,
+      "user": "CHANGEME",
+      "identityFile": "~/.ssh/id_ed25519_cpanel"
+    },
+    "cpanel": {
+      "host": "CHANGEME.hosting.example",
+      "port": 2083,
+      "user": "CHANGEME",
+      "apiTokenEnv": "CPANEL_TOKEN_MAIN",
+      "insecureTLS": false
+    },
+    "keepReleases": 5,
+    "healthPath": "/",
+    "expectStatus": 200,
+    "excludes": [".git", ".github", ".claude", "node_modules", ".env", ".env.*", ".DS_Store", "*.log", "tests", "*.md"]
+  },
+
+  "sites": {}
+}
