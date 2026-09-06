@@ -122,18 +122,18 @@ function render() {
 
 /* ---------------------------------------------------------------- Step 0 */
 async function renderPrereqs() {
-  const card = card("Checking prerequisites", "Node, git, ssh and tar need to be on your PATH.");
+  const screen = card("Checking prerequisites", "Node, git, ssh and tar need to be on your PATH.");
   const list = el("ul", "list");
-  card.appendChild(list);
+  screen.appendChild(list);
   const status = el("div", "status info"); status.textContent = "Checking...";
-  card.appendChild(status);
+  screen.appendChild(status);
   const actions = el("div", "actions");
   const btnInstall = button("Install MCP server dependency", "ghost", hide);
   const btnContinue = button("Continue", "primary", () => go(1));
   btnContinue.disabled = true;
   actions.append(btnInstall, btnContinue);
-  card.appendChild(actions);
-  $screens.appendChild(card);
+  screen.appendChild(actions);
+  $screens.appendChild(screen);
   hide(btnInstall);
 
   function hide(b) { b.hidden = true; }
@@ -165,14 +165,14 @@ async function renderConnection() {
     if (c.alreadySet) Object.assign(STATE.conn, c);
     STATE._connLoaded = true;
   }
-  const card = card("Hosting account connection", "This is the account every project scaffolded from this toolkit will share.");
-  card.appendChild(field("Host", "host", "text", STATE.conn.host, "server42.yourhost.com"));
-  card.appendChild(field("cPanel username", "user", "text", STATE.conn.user, "myacct"));
+  const screen = card("Hosting account connection", "This is the account every project scaffolded from this toolkit will share.");
+  screen.appendChild(field("Host", "host", "text", STATE.conn.host, "server42.yourhost.com"));
+  screen.appendChild(field("cPanel username", "user", "text", STATE.conn.user, "myacct"));
   const row = el("div", "row");
   row.appendChild(field("SSH port", "port", "number", STATE.conn.port));
   row.appendChild(field("cPanel port", "cpanelPort", "number", STATE.conn.cpanelPort));
-  card.appendChild(row);
-  card.appendChild(field("SSH private key path", "identityFile", "text", STATE.conn.identityFile));
+  screen.appendChild(row);
+  screen.appendChild(field("SSH private key path", "identityFile", "text", STATE.conn.identityFile));
   const actions = el("div", "actions");
   actions.append(
     button("Back", "ghost", () => go(0)),
@@ -184,17 +184,17 @@ async function renderConnection() {
       go(2);
     })
   );
-  card.appendChild(actions);
-  $screens.appendChild(card);
+  screen.appendChild(actions);
+  $screens.appendChild(screen);
 }
 
 /* ---------------------------------------------------------------- Step 2 */
 async function renderSshKey() {
-  const card = card("SSH deploy key", "One key, shared by every project scaffolded from this toolkit.");
+  const screen = card("SSH deploy key", "One key, shared by every project scaffolded from this toolkit.");
   const status = el("div", "status info"); status.textContent = "Preparing the key...";
-  card.appendChild(status);
+  screen.appendChild(status);
   const pub = el("div", "pubkey"); pub.hidden = true;
-  card.appendChild(pub);
+  screen.appendChild(pub);
   const manual = el("div"); manual.hidden = true;
   manual.innerHTML = `
     <div class="banner warn">cPanel's key import/authorize calls only exist in its legacy "API 2" interface -
@@ -204,15 +204,15 @@ async function renderSshKey() {
       <li>Paste the public key above and import it</li>
       <li>Back on the key list, click <b>Manage</b> next to it, then <b>Authorize</b></li>
     </ol>`;
-  card.appendChild(manual);
+  screen.appendChild(manual);
   const testBtn = button("Test connection", "ghost", testNow);
   const testStatus = el("div", "status", "hidden");
   const actions = el("div", "actions");
   const btnContinue = button("Continue", "primary", () => go(3));
   actions.append(button("Back", "ghost", () => go(1)), testBtn, btnContinue);
-  card.appendChild(testStatus);
-  card.appendChild(actions);
-  $screens.appendChild(card);
+  screen.appendChild(testStatus);
+  screen.appendChild(actions);
+  $screens.appendChild(screen);
 
   const keyInfo = await api("/api/ensure-key", { identityFile: STATE.conn.identityFile });
   STATE.publicKey = keyInfo.publicKey;
@@ -246,13 +246,13 @@ async function renderToken() {
     STATE._tokenAlreadySet = t.alreadySet;
     STATE._tokenLoaded = true;
   }
-  const card = card("cPanel API token", "cPanel → Security → Manage API Tokens → Create. Not your account password.");
+  const screen = card("cPanel API token", "cPanel → Security → Manage API Tokens → Create. Not your account password.");
   if (STATE._tokenAlreadySet) {
     const banner = el("div", "banner warn");
     banner.textContent = `An existing ${STATE.envVarName} was found in .env. Leave the field blank to keep it, or paste a new one to replace it.`;
-    card.appendChild(banner);
+    screen.appendChild(banner);
   }
-  card.appendChild(field("API token", "token", "password", "", "pasted here, saved only to your local .env"));
+  screen.appendChild(field("API token", "token", "password", "", "pasted here, saved only to your local .env"));
   const actions = el("div", "actions");
   actions.append(
     button("Back", "ghost", () => go(2)),
@@ -263,13 +263,13 @@ async function renderToken() {
       go(4);
     })
   );
-  card.appendChild(actions);
-  $screens.appendChild(card);
+  screen.appendChild(actions);
+  $screens.appendChild(screen);
 }
 
 /* ---------------------------------------------------------------- Step 4 */
 async function renderSave() {
-  const card = card("Save configuration", "Review, then write config/sites.json and .env.");
+  const screen = card("Save configuration", "Review, then write config/sites.json and .env.");
   const list = el("ul", "list");
   list.innerHTML = [
     ["Host", STATE.conn.host], ["User", STATE.conn.user], ["SSH port", STATE.conn.port],
@@ -277,11 +277,11 @@ async function renderSave() {
     ["Key authorized", STATE.keyAuthorized ? "yes" : "not confirmed"],
     ["API token", STATE.token ? "new value" : "keeping existing"],
   ].map(([k, v]) => `<li><span>${k}</span><span>${v}</span></li>`).join("");
-  card.appendChild(list);
+  screen.appendChild(list);
   if (!STATE.keyAuthorized) {
     const banner = el("div", "banner warn");
     banner.textContent = "The SSH connection was not confirmed - deploys will fail until the key is authorized in cPanel.";
-    card.insertBefore(banner, list);
+    screen.insertBefore(banner, list);
   }
   const status = el("div", "status", "hidden");
   const actions = el("div", "actions");
@@ -297,29 +297,29 @@ async function renderSave() {
     }
   });
   actions.append(button("Back", "ghost", () => go(3)), saveBtn);
-  card.appendChild(status);
-  card.appendChild(actions);
-  $screens.appendChild(card);
+  screen.appendChild(status);
+  screen.appendChild(actions);
+  $screens.appendChild(screen);
 }
 
 /* ---------------------------------------------------------------- Step 5 */
 async function renderProject() {
   if (!STATE._templates) STATE._templates = (await api("/api/templates")).templates;
-  const card = card("Scaffold a project", "Creates a project pre-wired with every agent, skill and this toolkit's MCP server.");
+  const screen = card("Scaffold a project", "Creates a project pre-wired with every agent, skill and this toolkit's MCP server.");
   const sel = document.createElement("select"); sel.id = "template";
   sel.innerHTML = STATE._templates.map((t) => `<option ${t === "php-site" ? "selected" : ""}>${t}</option>`).join("");
-  card.appendChild(labelFor("Template", sel));
-  card.appendChild(field("Site key", "key", "text", "", "acme"));
-  card.appendChild(field("Label", "label", "text", "", "Acme Kft"));
-  card.appendChild(field("Domain", "domain", "text", "", "acme.hu"));
-  card.appendChild(field("Directory", "dir", "text", "", "C:/xprojects/acme"));
+  screen.appendChild(labelFor("Template", sel));
+  screen.appendChild(field("Site key", "key", "text", "", "acme"));
+  screen.appendChild(field("Label", "label", "text", "", "Acme Kft"));
+  screen.appendChild(field("Domain", "domain", "text", "", "acme.hu"));
+  screen.appendChild(field("Directory", "dir", "text", "", "C:/xprojects/acme"));
   const check = el("label", "check-row");
   check.innerHTML = `<input type="checkbox" id="standalone"> Standalone (vendor the MCP server in - for Claude Code Cloud or its own repo)`;
-  card.appendChild(check);
+  screen.appendChild(check);
   const log = document.createElement("pre"); log.className = "log"; log.hidden = true;
-  card.appendChild(log);
+  screen.appendChild(log);
   const status = el("div", "status", "hidden");
-  card.appendChild(status);
+  screen.appendChild(status);
   const actions = el("div", "actions");
   const runBtn = button("Create project", "primary", async () => {
     const key = document.getElementById("key").value.trim();
@@ -347,35 +347,35 @@ async function renderProject() {
     button("Skip for now", "ghost", () => { STATE.scaffold = null; go(6); }),
     runBtn
   );
-  card.appendChild(actions);
-  $screens.appendChild(card);
+  screen.appendChild(actions);
+  $screens.appendChild(screen);
 }
 
 /* ---------------------------------------------------------------- Step 6 */
 function renderDone() {
-  const card = card("Done", "");
+  const screen = card("Done", "");
   if (STATE.scaffold) {
     const { proj, preflight } = STATE.scaffold;
     const list = el("ul", "list");
     const checks = preflight.result?.checks || [];
     list.innerHTML = checks.map((c) => `<li>${c.name} <span class="pill ${c.ok ? "ok" : "bad"}">${c.ok ? "OK" : "FAIL"}</span></li>`).join("")
       || "<li>Preflight did not return a result - check the terminal running wizard-gui.mjs.</li>";
-    card.appendChild(list);
+    screen.appendChild(list);
     const cmd = document.createElement("div"); cmd.className = "pubkey";
     cmd.textContent = `cd ${proj.dir} && claude`;
     const p = document.createElement("p"); p.className = "hint"; p.style.marginTop = "14px";
     p.innerHTML = "Open in Claude Code, then run <code class='inline'>/start</code>. Desktop: File → Open Folder → that directory.";
-    card.appendChild(p);
-    card.appendChild(cmd);
+    screen.appendChild(p);
+    screen.appendChild(cmd);
   } else {
     const p = document.createElement("p"); p.className = "hint";
     p.innerHTML = "Connection configured. Scaffold a project any time with <code class='inline'>node bin/new-project.mjs</code>.";
-    card.appendChild(p);
+    screen.appendChild(p);
   }
   const note = document.createElement("p"); note.className = "hint";
   note.textContent = "You can close this tab and stop the server (Ctrl+C in its terminal) whenever you like.";
-  card.appendChild(note);
-  $screens.appendChild(card);
+  screen.appendChild(note);
+  $screens.appendChild(screen);
 }
 
 /* --------------------------------------------------------------- helpers */
@@ -388,7 +388,6 @@ function card(title, hint) {
 function el(tag, cls, hidden) { const e = document.createElement(tag); if (cls) e.className = cls; if (hidden) e.hidden = true; return e; }
 function button(text, cls, onClick) { const b = document.createElement("button"); b.type = "button"; b.className = cls; b.textContent = text; b.onclick = onClick; return b; }
 function field(labelText, id, type, value, placeholder) {
-  const wrap = document.createDocumentFragment();
   const l = document.createElement("label"); l.textContent = labelText; l.htmlFor = id;
   const i = document.createElement("input"); i.type = type; i.id = id; i.value = value ?? ""; if (placeholder) i.placeholder = placeholder;
   const box = document.createElement("div"); box.append(l, i);
